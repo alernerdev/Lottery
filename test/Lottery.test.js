@@ -29,4 +29,61 @@ describe('Lottery Contract', ()=> {
         assert.equal(1, players.length);
     });
 
+    it('allows multiple accounts to enter', async () => {
+        await lottery.methods.enter()
+            .send({from: accounts[0], value: web3.utils.toWei('0.02', 'ether')});
+        await lottery.methods.enter()
+            .send({from: accounts[1], value: web3.utils.toWei('0.02', 'ether')});
+        await lottery.methods.enter()
+            .send({from: accounts[2], value: web3.utils.toWei('0.02', 'ether')});
+
+        const players = await lottery.methods.getPlayers().call({from: accounts[0]});
+        assert.equal(accounts[0], players[0]);
+        assert.equal(accounts[1], players[1]);
+        assert.equal(accounts[2], players[2]);
+        assert.equal(3, players.length);
+    });
+
+    it('requires a minimum amount of ether to enter', async () => {
+        try {
+            await lottery.methods.enter()
+                .send({from: accounts[0], value: 200}); // in wei
+
+            // shouldnt get this far.  it should fail.
+            assert(false);
+        } catch (err) {
+            assert(err);
+        }
+
+        const players = await lottery.methods.getPlayers().call({from: accounts[0]});
+        assert.equal(accounts[0], players[0])
+        assert.equal(1, players.length);
+    });
+
+    it('only manager can call pickWinner', async () => {
+        try {
+            // wrong acct is being sent in
+            await lottery.methods.pickWinner()
+                .send({from: accounts[1]});
+
+            // shouldnt get this far.  it should fail.
+            assert(false);
+        } catch (err) {
+            assert(err);
+        }
+
+    });
+
+    it('sends money to the winner and resets player array', async () => {
+        await lottery.methods.enter()
+            .send({from: accounts[0], value: web3.utils.toWei('2', 'ether')});
+
+        const initialBalance = await web3.eth.getBalance(accounts[0]);
+        await lottery.methods.pickWinner().send({from: accounts[0]});
+        const finalBalance = await web3.eth.getBalance(accounts[0]);
+
+        // we have spent 2 ether, but a part of it is gas for the transaction cost
+        const diff = finalBalance - initialBalance;
+        assert(diff > web3.utils.toWei('1.8', 'ether'));
+    });
 });
