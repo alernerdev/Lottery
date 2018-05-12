@@ -1,7 +1,10 @@
 const assert = require('assert');
 const ganache = require('ganache-cli');
 const Web3 = require('web3');
-const web3 = new Web3(ganache.provider());
+
+// web3 takes a provider as an argument to talk to a specific network.
+const provider = ganache.provider();
+const web3 = new Web3(provider);
 
 const {interface, bytecode} = require('../compile');
 
@@ -11,8 +14,10 @@ let accounts;
 beforeEach(async () => {
     accounts = await web3.eth.getAccounts();
     lottery = await new web3.eth.Contract(JSON.parse(interface))
-        .deploy({data: '0x0' + bytecode})
-        send({from: accounts[0], gas:'1000000'});
+        .deploy({data: bytecode})
+        .send({from: accounts[0], gas:'1000000'});
+
+    lottery.setProvider(provider);
 });
 
 describe('Lottery Contract', ()=> {
@@ -54,11 +59,7 @@ describe('Lottery Contract', ()=> {
         } catch (err) {
             assert(err);
         }
-
-        const players = await lottery.methods.getPlayers().call({from: accounts[0]});
-        assert.equal(accounts[0], players[0])
-        assert.equal(1, players.length);
-    });
+     });
 
     it('only manager can call pickWinner', async () => {
         try {
@@ -71,7 +72,6 @@ describe('Lottery Contract', ()=> {
         } catch (err) {
             assert(err);
         }
-
     });
 
     it('sends money to the winner and resets player array', async () => {
